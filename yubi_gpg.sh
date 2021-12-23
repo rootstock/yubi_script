@@ -32,7 +32,8 @@ read trash
 
 if [ -f /tmp/gpg-key-gen ]; then
     echo "" > ~/.gnupg/gpg.conf
-    echo "" > gpg-agent.conf
+    echo "" > ~/.gnupg/gpg-agent.conf
+    echo "" > ~/.gnupg/scdaemon.conf
     ykman openpgp reset
     rm -f /tmp/key.txt
     TMP_FILE=`mktemp /tmp/test.XXXXXXXXXX`
@@ -41,20 +42,7 @@ if [ -f /tmp/gpg-key-gen ]; then
     TMP_FILE=`mktemp /tmp/test.XXXXXXXXXX`
     sed -e "s/^.*gpgconf.*$//" ~/.zshrc > $TMP_FILE
     mv $TMP_FILE ~/.zshrc
-fi
-
-if [ -w ~/.gnupg/gpg.conf ]; then
-    echo
-else
-    echo "ERROR: Change the persmissions to the ~/.gnupg directory"
-    exit 1
-fi
-
-if [ -w ~/.zshrc ]; then
-    echo
-else
-    echo "ERROR: Change the permissions to the file ~/.zshrc"
-    exit 1
+    rm -f /tmp/gpg-key-gen
 fi
 
 read firstname\?"Enter your firstname: "
@@ -90,7 +78,7 @@ subkeysExpiration="0"
 workdir=$(mktemp -d)
 export GNUPGHOME=$workdir
 cd $GNUPGHOME
-wget https://raw.githubusercontent.com/rsksmart/gpg-conf/main/gpg.conf
+wget -q https://raw.githubusercontent.com/rsksmart/gpg-conf/main/gpg.conf
 masterkey=$(gpg --gen-random --armor 0 24)
 
 echo "\n\n"
@@ -173,7 +161,7 @@ if [ -z "$KEYID" ]; then
     export KEYID=$keyid
 fi
 
-if [ $KEID = "0x" ]; then
+if [ $KEYID = "0x" ]; then
     echo "ERROR retrieving the KEYID"
     exit 1
 fi
@@ -417,9 +405,6 @@ expect eof
 
 DONE
 
-echo "Saving gpg public key in desktop (gpg_public_key.txt)"
-gpg --export -a $email public.key > ~/Desktop/gpg_public_key.txt
-
 cd ~/.gnupg
 
 #Generating gpg.conf
@@ -450,7 +435,7 @@ echo "gpgconf --launch gpg-agent" >> ~/.zshrc
 echo "gpgconf --kill all" >> ~/.zshrc
 
 echo "Saving gpg data"
-gpg --export -a $KEYID > ~/Desktop/gpg.txt
+gpg --export -a $KEYID > ~/Desktop/gpg_public_key.txt
 
 ##exporting secret keys
 #gpg --armor --export-secret-keys $KEYID > ~/Desktop/master.key
@@ -460,8 +445,9 @@ gpg --card-status
 
 export GNUPGHOME=
 killall gpg-agent
-gpg --import < ~/Desktop/gpg.txt
+gpg --import < ~/Desktop/gpg_public_key.txt
 gpg --card-status
+source ~/.zshrc
 
 echo ""
 echo "********************************************************************************************"
@@ -470,8 +456,6 @@ echo "**************************************************************************
 echo ""
 echo "If now errors were showed during the process, press any key to finish"
 read trash
-gpg --import < ~/Desktop/gpg.txt
-gpg --card-status
 echo "The previous command should have information in 'General key info' otherwise something went wrong... "
 echo "To confirm everything went well open a new terminal and type (you should see your publickeys): gpg --card-status && ssh-add -L"
 
